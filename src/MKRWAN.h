@@ -206,14 +206,14 @@ const T& Max(const T& a, const T& b)
 #endif
 
 #define LORA_NL "\n"
-static const char LORA_OK[] = "OK\r\n";
-static const char LORA_ERROR[] = "ERROR\r\n";
-static const char LORA_ERROR_PARAM[] = "PARAM_ERROR\r\n";
-static const char LORA_ERROR_BUSY[] = "+ERR_BUSY\r";
-static const char LORA_ERROR_OVERFLOW[] = "+ERR_PARAM_OVERFLOW\r";
-static const char LORA_ERROR_NO_NETWORK[] = "+ERR_NO_NETWORK\r";
-static const char LORA_ERROR_RX[] = "+ERR_RX\r";
-static const char LORA_ERROR_UNKNOWN[] = "+ERR_UNKNOWN\r";
+static const char LORA_OK[] = "+OK\r\n";
+static const char LORA_ERROR[] = "+ERROR\r\n";
+static const char LORA_ERROR_PARAM[] = "+PARAM_ERROR\r\n";
+static const char LORA_ERROR_BUSY[] = "+ERR_BUSY\r\n";
+static const char LORA_ERROR_OVERFLOW[] = "+ERR_PARAM_OVERFLOW\r\n";
+static const char LORA_ERROR_NO_NETWORK[] = "+ERR_NO_NETWORK\r\n";
+static const char LORA_ERROR_RX[] = "+ERR_RX\r\n";
+static const char LORA_ERROR_UNKNOWN[] = "+ERR_UNKNOWN\r\n";
 
 static const char ARDUINO_FW_VERSION[] = "ARD-078 1.1.9";
 static const char ARDUINO_FW_IDENTIFIER[] = "ARD-078";
@@ -229,6 +229,7 @@ typedef enum {
     IN865 = 7,
     US915 = 8,
     RU864 = 9,
+    AU915_TTN=0x80,
 } _lora_band;
 
 typedef enum {
@@ -247,6 +248,8 @@ typedef enum {
     DEV_EUI,
     DEV_ADDR,
     NWKS_KEY,
+    FNWKS_KEY,
+    SNWKS_KEY,
     APPS_KEY,
     NWK_ID,
 } _lora_property;
@@ -319,8 +322,12 @@ public:
     //set(NWK_ID, nwkId);
     set(DEV_ADDR, devAddr);
     set(NWKS_KEY, nwkSKey);
+    // for LoRa 1.0.x devices, this MUST be the same as the NWKS_KEY
+    set(FNWKS_KEY, nwkSKey);
+    set(SNWKS_KEY, nwkSKey);
     set(APPS_KEY, appSKey);
-    network_joined = join();
+    // no need to join on ABP
+    //network_joined = join();
     return (getJoinStatus() == 1);
   }
 
@@ -598,22 +605,22 @@ public:
   // Sends the modem into dumb mode, so the Semtech chip can be controlled directly
   // The only way to exit this mode is through a begin()
   void dumb() {
-	SerialLoRa.end();
-	pinMode(LORA_IRQ_DUMB, OUTPUT);
-	digitalWrite(LORA_IRQ_DUMB, LOW);
+  SerialLoRa.end();
+  pinMode(LORA_IRQ_DUMB, OUTPUT);
+  digitalWrite(LORA_IRQ_DUMB, LOW);
 
-	// Hardware reset
-	pinMode(LORA_BOOT0, OUTPUT);
-	digitalWrite(LORA_BOOT0, LOW);
-	pinMode(LORA_RESET, OUTPUT);
-	digitalWrite(LORA_RESET, HIGH);
-	delay(200);
-	digitalWrite(LORA_RESET, LOW);
-	delay(200);
-	digitalWrite(LORA_RESET, HIGH);
-	delay(50);
+  // Hardware reset
+  pinMode(LORA_BOOT0, OUTPUT);
+  digitalWrite(LORA_BOOT0, LOW);
+  pinMode(LORA_RESET, OUTPUT);
+  digitalWrite(LORA_RESET, HIGH);
+  delay(200);
+  digitalWrite(LORA_RESET, LOW);
+  delay(200);
+  digitalWrite(LORA_RESET, HIGH);
+  delay(50);
 
-	// You can now use SPI1 and LORA_IRQ_DUMB as CS to interface with the chip
+  // You can now use SPI1 and LORA_IRQ_DUMB as CS to interface with the chip
   }
 #endif
 
@@ -640,14 +647,14 @@ public:
 
 
 /*
-	DataRate 	Modulation 	SF 	BW 	bit/s
-	0 	LoRa 	12 	125 	250
-	1 	LoRa 	11 	125 	440
-	2 	LoRa 	10 	125 	980
-	3 	LoRa 	9 	125 	1'760
-	4 	LoRa 	8 	125 	3'125
-	5 	LoRa 	7 	125 	5'470
-	6 	LoRa 	7 	250 	11'000
+  DataRate  Modulation  SF  BW  bit/s
+  0   LoRa  12  125   250
+  1   LoRa  11  125   440
+  2   LoRa  10  125   980
+  3   LoRa  9   125   1'760
+  4   LoRa  8   125   3'125
+  5   LoRa  7   125   5'470
+  6   LoRa  7   250   11'000
 */
 
   bool dataRate(uint8_t dr) {
@@ -701,7 +708,6 @@ public:
   String getAppSKey() {
     return getValue("APPKEY");
   }
-
 
 private:
 
@@ -761,6 +767,12 @@ private:
         case NWKS_KEY:
             sendAT(GF("+NWKSKEY="), real_val);
             break;
+        case FNWKS_KEY:
+            sendAT(GF("+FNWKSKEY="), real_val);
+            break;
+        case SNWKS_KEY:
+            sendAT(GF("+SNWKSKEY="), real_val);
+            break;
         case NWK_ID:
             sendAT(GF("+NWKID="), real_val);
             break;
@@ -814,7 +826,7 @@ private:
     if (confirmed && rc == 1) {
       // need both OK and shitty confirmation string
       const char* confirmation = "confirmed message transmission";
-      rc = waitResponse(5000, GFP(confirmation));
+      rc = waitResponse(40000, GFP(confirmation));
     }
 
     if (rc == 1) {            ///< OK

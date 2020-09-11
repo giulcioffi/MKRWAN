@@ -4,17 +4,25 @@
   This example code is in the public domain.
 */
 
-#include <MKRWAN.h>
+#ifndef SerialLoRa
+#error "not defined"
+#endif
+
+#include "MKRWAN_TEST.h"
 
 LoRaModem modem;
 
 // Uncomment if using the Murata chip as a module
-// LoRaModem modem(Serial1);
+//LoRaModem modem(Serial1);
 
 #include "arduino_secrets.h"
 // Please enter your sensitive data in the Secret tab or arduino_secrets.h
 String appEui = SECRET_APP_EUI;
 String appKey = SECRET_APP_KEY;
+
+String devAddr = "x";
+String nwkSKey = "y";
+String appSKey = "z";
 
 void setup() {
   // put your setup code here, to run once:
@@ -30,26 +38,44 @@ void setup() {
   Serial.print("Your device EUI is: ");
   Serial.println(modem.deviceEUI());
 
-  int connected = modem.joinOTAA(appEui, appKey);
+  //int connected = modem.joinOTAA(appEui, appKey);
+  int connected = modem.joinABP(devAddr, nwkSKey, appSKey);
   if (!connected) {
     Serial.println("Something went wrong; are you indoor? Move near a window and retry");
     while (1) {}
   }
 
+  modem.setPort(1);
   // Set poll interval to 60 secs.
   modem.minPollInterval(60);
   // NOTE: independently by this setting the modem will
   // not allow to send more than one message every 2 minutes,
   // this is enforced by firmware and can not be changed.
+  Serial.print("ready!");
 }
 
-void loop() {
+static int counter = 0;
+static uint32_t time_last = 0;
+static char sendMessage[50];
+String newMessage;
+
+void loop()
+{
+  uint32_t time_now = millis();
+  if (time_now - time_last > 60000)
+  {
+      _loop();
+      counter++;
+      time_last = time_now;
+  }
+}
+
+void _loop() {
   Serial.println();
   Serial.println("Enter a message to send to network");
   Serial.println("(make sure that end-of-line 'NL' is enabled)");
 
-  while (!Serial.available());
-  String msg = Serial.readStringUntil('\n');
+  String msg = String("counter = ") + String(counter);
 
   Serial.println();
   Serial.print("Sending: " + msg + " - ");
@@ -88,4 +114,5 @@ void loop() {
     Serial.print(" ");
   }
   Serial.println();
+  
 }
