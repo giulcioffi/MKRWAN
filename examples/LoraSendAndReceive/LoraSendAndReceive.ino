@@ -8,7 +8,7 @@
 #error "not defined"
 #endif
 
-#include "MKRWAN_TEST.h"
+#include "MKRWAN.h"
 
 LoRaModem modem;
 
@@ -38,8 +38,8 @@ void setup() {
   Serial.print("Your device EUI is: ");
   Serial.println(modem.deviceEUI());
 
-  //int connected = modem.joinOTAA(appEui, appKey);
-  int connected = modem.joinABP(devAddr, nwkSKey, appSKey);
+  int connected = modem.joinOTAA(appEui, appKey);
+  //int connected = modem.joinABP(devAddr, nwkSKey, appSKey);
   if (!connected) {
     Serial.println("Something went wrong; are you indoor? Move near a window and retry");
     while (1) {}
