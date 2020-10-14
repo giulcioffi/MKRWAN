@@ -16,6 +16,10 @@ LoRaModem modem;
 String appEui = SECRET_APP_EUI;
 String appKey = SECRET_APP_KEY;
 
+String devAddr = "x";
+String nwkSKey = "y";
+String appSKey = "z";
+
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(115200);
@@ -31,11 +35,13 @@ void setup() {
   Serial.println(modem.deviceEUI());
 
   int connected = modem.joinOTAA(appEui, appKey);
+  //int connected = modem.joinABP(devAddr, nwkSKey, appSKey);
   if (!connected) {
     Serial.println("Something went wrong; are you indoor? Move near a window and retry");
     while (1) {}
   }
 
+  modem.setPort(1);
   // Set poll interval to 60 secs.
   modem.minPollInterval(60);
   // NOTE: independently by this setting the modem will
@@ -60,16 +66,16 @@ void loop() {
   }
   Serial.println();
 
-  int err;
-  modem.beginPacket();
-  modem.print(msg);
-  err = modem.endPacket(true);
-  if (err > 0) {
-    Serial.println("Message sent correctly!");
-  } else {
-    Serial.println("Error sending message :(");
-    Serial.println("(you may send a limited amount of messages per minute, depending on the signal strength");
-    Serial.println("it may vary from 1 message every couple of seconds to 1 message every minute)");
+  int err = 0;
+  while (err <= 0) {
+    modem.beginPacket();
+    modem.print(msg);
+    err = modem.endPacket(true);
+    if (err > 0) {
+      Serial.println("Message sent correctly!");
+      break;
+    }
+    delay(5000);
   }
   delay(1000);
   if (!modem.available()) {
